@@ -30,30 +30,35 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: ♻️ Restore caches
-        uses: ./.github/actions/expo-caches
-        id: expo-caches
-        with:
-          yarn-workspace: 'true'
-          yarn-tools: 'true'
-      - name: 🧶 Install workspace node modules
-        if: steps.expo-caches.outputs.yarn-workspace-hit != 'true'
-        run: yarn install --frozen-lockfile
-      - name: 🧶 Install modules in tools dir
-        if: steps.expo-caches.outputs.yarn-tools-hit != 'true'
-        run: yarn install --ignore-scripts --frozen-lockfile
-        working-directory: tools
-      - name: 📦 Publish canaries
-        run: ./bin/expotools publish-packages --canary ${{ github.event_name != 'workflow_dispatch' && '--dry' || '' }}
-        env:
-          FORCE_COLOR: '2'
+      - name: Test
+        run: exit 1
+      # - name: ♻️ Restore caches
+      #   uses: ./.github/actions/expo-caches
+      #   id: expo-caches
+      #   with:
+      #     yarn-workspace: 'true'
+      #     yarn-tools: 'true'
+      # - name: 🧶 Install workspace node modules
+      #   if: steps.expo-caches.outputs.yarn-workspace-hit != 'true'
+      #   run: yarn install --frozen-lockfile
+      # - name: 🧶 Install modules in tools dir
+      #   if: steps.expo-caches.outputs.yarn-tools-hit != 'true'
+      #   run: yarn install --ignore-scripts --frozen-lockfile
+      #   working-directory: tools
+      # - name: 📦 Publish canaries
+      #   run: ./bin/expotools publish-packages --canary ${{ github.event_name != 'workflow_dispatch' && '--dry' || '' }}
+      #   env:
+      #     FORCE_COLOR: '2'
       - name: 🔔 Notify on Slack
-        uses: 8398a7/action-slack@v3
-        if: failure() && github.event_name == 'schedule'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SLACK_WEBHOOK_URL: ${{ secrets.slack_webhook_api }}
+        uses: slackapi/slack-github-action@v2.1.1
+        # if: failure() && github.event_name == 'schedule'
         with:
-          status: ${{ job.status }}
-          fields: job,message,author,took
-          author_name: Publish Canaries
+          webhook: ${{ secrets.slack_webhook_api }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "Publish Canaries - ${{ job.status }}"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "*Publish Canaries*\n*Status:* ${{ job.status }}\n*Job:* ${{ github.job }}\n*Author:* ${{ github.actor }}\n*Message:* ${{ github.event.head_commit.message || 'No commit message' }}\n*Repository:* ${{ github.repository }}\n*Workflow:* ${{ github.workflow }}\n*Run:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|#${{ github.run_number }}>"
