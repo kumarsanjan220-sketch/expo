@@ -52,7 +52,5 @@ jobs:
         if: failure() && github.event_name == 'schedule'
         with:
           webhook: ${{ secrets.slack_webhook_api }}
-          author_name: 'Publish Canaries'
-          job_name: ${{ github.job }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          status: ${{ job.status }}
+          author_name: Publish Canaries
+          fields: job,message,author,took

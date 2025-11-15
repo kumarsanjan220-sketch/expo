@@ -136,11 +136,18 @@ runs:
             }
           }
 
-          // [outputs] color
+          // [outputs] color and text based on status
           const status = process.env.JOB_STATUS.toLowerCase();
           let color = 'danger'; // default to red
-          if (status === 'success') color = 'good'; // green
-          if (status === 'cancelled') color = 'warning'; // yellow
+          let text = ':no_entry: Failed GitHub Actions\n';
+
+          if (status === 'success') {
+            color = 'good'; // green
+            text = ':white_check_mark: Succeeded GitHub Actions\n';
+          } else if (status === 'cancelled') {
+            color = 'warning'; // yellow
+            text = ':warning: Cancelled GitHub Actions\n';
+          }
 
           // [outputs] fields
           const slackFields = [];
@@ -174,6 +181,7 @@ runs:
 
           core.setOutput('fields', JSON.stringify(slackFields));
           core.setOutput('color', color);
+          core.setOutput('text', text);
 
     - name: Send to Slack
       uses: slackapi/slack-github-action@v2.1.1
@@ -181,7 +189,7 @@ runs:
         webhook: ${{ inputs.webhook }}
         webhook-type: incoming-webhook
         payload: |
-          text: "${{ inputs.author_name }}"
+          text: "${{ steps.details.outputs.text }}"
           attachments:
             - color: "${{ steps.details.outputs.color }}"
               author_name: "${{ inputs.author_name }}"

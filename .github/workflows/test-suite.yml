@@ -196,7 +196,7 @@ jobs:
         with:
           webhook: ${{ secrets.slack_webhook_ios }}
           channel: '#expo-ios'
-          job_name: 'Test Suite e2e (iOS)'
+          job_name: Test Suite e2e (iOS)
           artifact_url: ${{ steps.upload-artifacts.outputs.artifact-url }}
       - name: 🛑 Stop image comparison server
         if: always()
@@ -289,7 +289,7 @@ jobs:
         with:
           webhook: ${{ secrets.slack_webhook_android }}
           channel: '#expo-android'
-          author_name: 'Test Suite e2e (Android)'
+          author_name: Test Suite e2e (Android)
 
   android-test-e2e:
     needs: android-build
@@ -358,7 +358,7 @@ jobs:
         with:
           webhook: ${{ secrets.slack_webhook_android }}
           channel: '#expo-android'
-          job_name: 'Test Suite e2e (Android)'
+          job_name: Test Suite e2e (Android)
           artifact_url: ${{ steps.upload-artifacts.outputs.artifact-url }}
       - name: 🛑 Stop image comparison server
         if: always()
