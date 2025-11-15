@@ -4,6 +4,9 @@ inputs:
   webhook:
     description: 'Slack webhook URL'
     required: true
+  channel:
+    description: 'Override the default target channel'
+    required: false
   author_name:
     description: 'Author name to display in notification'
     required: false
@@ -14,18 +17,24 @@ inputs:
     default: ${{ github.job }}
   github_token:
     description: 'GitHub token for API calls'
-    required: true
+    required: false
+    default: ${{ github.token }}
   status:
     description: 'Job status (success, failure, cancelled)'
-    required: true
+    required: false
+    default: ${{ github.job.status }}
+  fields:
+    description: 'Comma-separated list of fields to include (job,message,ref,eventName,author,took). Default: job,message,ref,eventName,author,took'
+    required: false
+    default: 'job,message,ref,eventName,author,took'
   artifact_url:
     description: 'Artifact download URL (optional)'
     required: false
     default: ''
-  fields:
-    description: 'Comma-separated list of fields to include (message,author,job,took,ref,eventName). Default: job,message,ref,eventName,author,took'
+  matrix:
+    description: 'Matrix context for job name formatting'
     required: false
-    default: 'job,message,ref,eventName,author,took'
+    default: ${{ matrix }}
 
 runs:
   using: 'composite'
@@ -38,12 +47,27 @@ runs:
         JOB_STATUS: ${{ inputs.status }}
         INCLUDE_FIELDS: ${{ inputs.fields }}
         ARTIFACT_URL: ${{ inputs.artifact_url }}
+        MATRIX_CONTEXT: ${{ toJSON(inputs.matrix) }}
       with:
         github-token: ${{ inputs.github_token }}
         script: |
           const { owner, repo } = context.repo;
           const { sha } = context;
           const fields = process.env.INCLUDE_FIELDS.split(',').map(f => f.trim());
+
+          // Determine job name with matrix support
+          let jobName = process.env.JOB_NAME;
+          if (process.env.MATRIX_CONTEXT && process.env.MATRIX_CONTEXT !== 'null') {
+            try {
+              const matrix = JSON.parse(process.env.MATRIX_CONTEXT);
+              const matrixValues = Object.values(matrix).join(', ');
+              if (matrixValues !== '') {
+                jobName = `${jobName} (${matrixValues})`;
+              }
+            } catch (e) {
+              // If parsing fails, just use the original job name
+            }
+          }
 
           // Fetch commit details
           const commit = await github.rest.repos.getCommit({
@@ -52,7 +76,7 @@ runs:
             ref: sha
           });
 
-          // Format message field (first line only, HTML escaped, linked)
+          // [fields] message
           const commitMessage = commit.data.commit.message
             .split('\n')[0]
             .replace(/&/g, '&amp;')
@@ -60,65 +84,66 @@ runs:
             .replace(/>/g, '&gt;');
           const messageField = `<${commit.data.html_url}|${commitMessage}>`;
 
-          // Format author field
+          // [fields] author
           const author = commit.data.commit.author;
           const authorField = `${author.name} <${author.email}>`;
 
-          // Format ref field
+          // [fields] ref
           const refField = context.ref;
 
-          // Format eventName field
+          // [fields] eventName
           const eventNameField = context.eventName;
 
-          // Fetch job details
-          const jobs = await github.paginate(
-            github.rest.actions.listJobsForWorkflowRun,
-            {
-              owner,
-              repo,
-              run_id: context.runId
-            }
-          );
-
-          const jobName = process.env.JOB_NAME;
-          const currentJob = jobs.find(job =>
-            job.name === jobName || job.name.endsWith(` / ${jobName}`)
-          );
-
+          // [fields] job / took
           let jobField = 'Job not found';
           let tookField = 'N/A';
 
-          if (currentJob) {
-            // Format job field with link
-            jobField = `<${process.env.GITHUB_SERVER_URL || 'https://github.com'}/${owner}/${repo}/runs/${currentJob.id}|${jobName}>`;
+          if (fields.includes('job') || fields.includes('took')) {
+            const jobs = await github.paginate(
+              github.rest.actions.listJobsForWorkflowRun,
+              {
+                owner,
+                repo,
+                run_id: context.runId
+              }
+            );
 
-            // Calculate duration
-            const startTime = new Date(currentJob.started_at).getTime();
-            const endTime = new Date().getTime();
-            let duration = endTime - startTime;
+            // Use base job name (without matrix) to find the job
+            const baseJobName = process.env.JOB_NAME;
+            const currentJob = jobs.find(job =>
+              job.name === baseJobName || job.name.endsWith(` / ${baseJobName}`)
+            );
 
-            const hours = Math.floor(duration / (1000 * 60 * 60));
-            duration -= hours * 1000 * 60 * 60;
-            const minutes = Math.floor(duration / (1000 * 60));
-            duration -= minutes * 1000 * 60;
-            const seconds = Math.floor(duration / 1000);
+            if (currentJob) {
+              // Use formatted job name (with matrix) for display
+              jobField = `<https://github.com/${owner}/${repo}/runs/${currentJob.id}|${jobName}>`;
 
-            let tookParts = [];
-            if (hours > 0) tookParts.push(`${hours} hour`);
-            if (minutes > 0) tookParts.push(`${minutes} min`);
-            if (seconds > 0) tookParts.push(`${seconds} sec`);
-            tookField = tookParts.join(' ') || '0 sec';
+              const startTime = new Date(currentJob.started_at).getTime();
+              const endTime = new Date().getTime();
+              let duration = endTime - startTime;
+
+              const hours = Math.floor(duration / (1000 * 60 * 60));
+              duration -= hours * 1000 * 60 * 60;
+              const minutes = Math.floor(duration / (1000 * 60));
+              duration -= minutes * 1000 * 60;
+              const seconds = Math.floor(duration / 1000);
+
+              let tookParts = [];
+              if (hours > 0) tookParts.push(`${hours} hour`);
+              if (minutes > 0) tookParts.push(`${minutes} min`);
+              if (seconds > 0) tookParts.push(`${seconds} sec`);
+              tookField = tookParts.join(' ') || '0 sec';
+            }
           }
 
-          // Determine color based on status
+          // [outputs] color
           const status = process.env.JOB_STATUS.toLowerCase();
           let color = 'danger'; // default to red
           if (status === 'success') color = 'good'; // green
           if (status === 'cancelled') color = 'warning'; // yellow
 
-          // Build fields array based on requested fields
+          // [outputs] fields
           const slackFields = [];
-
           if (fields.includes('message')) {
             slackFields.push({ title: 'message', value: messageField, short: true });
           }
@@ -138,7 +163,6 @@ runs:
             slackFields.push({ title: 'eventName', value: eventNameField, short: true });
           }
 
-          // Add artifact URL if provided
           const artifactUrl = process.env.ARTIFACT_URL;
           if (artifactUrl && artifactUrl !== '') {
             slackFields.push({
@@ -148,7 +172,6 @@ runs:
             });
           }
 
-          // Set outputs
           core.setOutput('fields', JSON.stringify(slackFields));
           core.setOutput('color', color);
 
