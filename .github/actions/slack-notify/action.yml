@@ -23,16 +23,16 @@ inputs:
     required: false
     default: ''
   fields:
-    description: 'Comma-separated list of fields to include (message,author,job,took,ref,eventName). Default: message,author,job,took'
+    description: 'Comma-separated list of fields to include (message,author,job,took,ref,eventName). Default: job,message,ref,eventName,author,took'
     required: false
-    default: 'message,author,job,took'
+    default: 'job,message,ref,eventName,author,took'
 
 runs:
   using: 'composite'
   steps:
     - name: Gather job details
       id: details
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       env:
         JOB_NAME: ${{ inputs.job_name }}
         JOB_STATUS: ${{ inputs.status }}
