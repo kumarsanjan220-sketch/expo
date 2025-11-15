@@ -30,29 +30,26 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Test
-        run: exit 1
-      # - name: ♻️ Restore caches
-      #   uses: ./.github/actions/expo-caches
-      #   id: expo-caches
-      #   with:
-      #     yarn-workspace: 'true'
-      #     yarn-tools: 'true'
-      # - name: 🧶 Install workspace node modules
-      #   if: steps.expo-caches.outputs.yarn-workspace-hit != 'true'
-      #   run: yarn install --frozen-lockfile
-      # - name: 🧶 Install modules in tools dir
-      #   if: steps.expo-caches.outputs.yarn-tools-hit != 'true'
-      #   run: yarn install --ignore-scripts --frozen-lockfile
-      #   working-directory: tools
-      # - name: 📦 Publish canaries
-      #   run: ./bin/expotools publish-packages --canary ${{ github.event_name != 'workflow_dispatch' && '--dry' || '' }}
-      #   env:
-      #     FORCE_COLOR: '2'
+      - name: ♻️ Restore caches
+        uses: ./.github/actions/expo-caches
+        id: expo-caches
+        with:
+          yarn-workspace: 'true'
+          yarn-tools: 'true'
+      - name: 🧶 Install workspace node modules
+        if: steps.expo-caches.outputs.yarn-workspace-hit != 'true'
+        run: yarn install --frozen-lockfile
+      - name: 🧶 Install modules in tools dir
+        if: steps.expo-caches.outputs.yarn-tools-hit != 'true'
+        run: yarn install --ignore-scripts --frozen-lockfile
+        working-directory: tools
+      - name: 📦 Publish canaries
+        run: ./bin/expotools publish-packages --canary ${{ github.event_name != 'workflow_dispatch' && '--dry' || '' }}
+        env:
+          FORCE_COLOR: '2'
       - name: 🔔 Notify on Slack
         uses: ./.github/actions/slack-notify
-        if: failure()
-        # if: failure() && github.event_name == 'schedule'
+        if: failure() && github.event_name == 'schedule'
         with:
           webhook: ${{ secrets.slack_webhook_api }}
           author_name: 'Publish Canaries'
