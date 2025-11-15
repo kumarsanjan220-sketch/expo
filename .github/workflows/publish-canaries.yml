@@ -49,7 +49,8 @@ jobs:
           FORCE_COLOR: '2'
       - name: 🔔 Notify on Slack
         uses: ./.github/actions/slack-notify
-        if: failure() && github.event_name == 'schedule'
+        if: failure()
+        # if: failure() && github.event_name == 'schedule'
         with:
           webhook: ${{ secrets.slack_webhook_api }}
           author_name: Publish Canaries
