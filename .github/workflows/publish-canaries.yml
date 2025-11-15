@@ -50,26 +50,12 @@ jobs:
       #   env:
       #     FORCE_COLOR: '2'
       - name: 🔔 Notify on Slack
-        uses: slackapi/slack-github-action@v2.1.1
+        uses: 8398a7/action-slack@v3
         if: failure()
-        # if: failure() && github.event_name == 'schedule'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.slack_webhook_api }}
         with:
-          webhook: ${{ secrets.slack_webhook_api }}
-          webhook-type: incoming-webhook
-          payload: |
-            text: "Publish Canaries"
-            blocks:
-              - type: "header"
-                text:
-                  type: "plain_text"
-                  text: "Publish Canaries"
-              - type: "section"
-                fields:
-                  - type: "mrkdwn"
-                    text: "*message*\n${{ github.event.head_commit.message || 'No commit message' }}"
-                  - type: "mrkdwn"
-                    text: "*author*\n${{ github.event.head_commit.author.name || github.actor }} <${{ github.event.head_commit.author.email || '' }}>"
-                  - type: "mrkdwn"
-                    text: "*job*\n${{ github.job }}"
-                  - type: "mrkdwn"
-                    text: "*took*\nView run <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|#${{ github.run_number }}>"
+          status: ${{ job.status }}
+          fields: job,message,author,took
+          author_name: Publish Canaries
