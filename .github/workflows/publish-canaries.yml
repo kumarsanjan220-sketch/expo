@@ -50,7 +50,7 @@ jobs:
       #   env:
       #     FORCE_COLOR: '2'
       - name: 🔔 Notify on Slack
-        uses: ./.github/actions/slack-notify-job
+        uses: ./.github/actions/slack-notify
         if: failure()
         # if: failure() && github.event_name == 'schedule'
         with:
