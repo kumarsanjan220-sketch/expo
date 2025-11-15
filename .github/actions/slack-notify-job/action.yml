@@ -108,7 +108,6 @@ runs:
 
     - name: Send to Slack
       uses: slackapi/slack-github-action@v2.1.1
-      shell: bash
       with:
         webhook: ${{ inputs.webhook }}
         webhook-type: incoming-webhook
